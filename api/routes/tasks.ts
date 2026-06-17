@@ -26,16 +26,18 @@ router.get('/', authMiddleware, (req: AuthRequest, res: Response): void => {
 router.post('/', authMiddleware, requireProjectManagerOrAdmin, (req: AuthRequest, res: Response): void => {
   try {
     const projectId = Number(req.params.id);
-    const { name, estimatedHours } = req.body as CreateTaskRequest;
+    const { name, estimatedHours, status } = req.body as CreateTaskRequest & { status?: string };
 
     if (!name || !estimatedHours) {
       res.status(400).json({ success: false, error: '请填写任务名称和预估工时' });
       return;
     }
 
+    const taskStatus = status === 'completed' ? 'completed' : 'pending';
+
     const result = db.prepare(
-      'INSERT INTO tasks (project_id, name, estimated_hours) VALUES (?, ?, ?)'
-    ).run(projectId, name, estimatedHours);
+      'INSERT INTO tasks (project_id, name, estimated_hours, status) VALUES (?, ?, ?, ?)'
+    ).run(projectId, name, estimatedHours, taskStatus);
 
     const task = db.prepare(`
       SELECT t.*, 0 as actual_hours
@@ -53,7 +55,7 @@ router.post('/', authMiddleware, requireProjectManagerOrAdmin, (req: AuthRequest
 router.put('/:taskId', authMiddleware, requireProjectManagerOrAdmin, (req: AuthRequest, res: Response): void => {
   try {
     const taskId = Number(req.params.taskId);
-    const { name, estimatedHours } = req.body;
+    const { name, estimatedHours, status } = req.body;
 
     const existing = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
     if (!existing) {
@@ -61,12 +63,15 @@ router.put('/:taskId', authMiddleware, requireProjectManagerOrAdmin, (req: AuthR
       return;
     }
 
+    const validStatus = status === 'pending' || status === 'completed' ? status : undefined;
+
     db.prepare(`
       UPDATE tasks
       SET name = COALESCE(?, name),
-          estimated_hours = COALESCE(?, estimated_hours)
+          estimated_hours = COALESCE(?, estimated_hours),
+          status = COALESCE(?, status)
       WHERE id = ?
-    `).run(name, estimatedHours, taskId);
+    `).run(name, estimatedHours, validStatus, taskId);
 
     const task = db.prepare(`
       SELECT t.*,

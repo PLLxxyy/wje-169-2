@@ -40,6 +40,7 @@ export function initDatabase() {
       project_id INTEGER NOT NULL,
       name VARCHAR(200) NOT NULL,
       estimated_hours INTEGER NOT NULL,
+      status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'completed')),
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
@@ -66,6 +67,14 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_projects_manager ON projects(manager_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
   `);
+
+  const columns = db.prepare("PRAGMA table_info(tasks)").all() as Array<{ name: string }>;
+  const hasStatus = columns.some((c) => c.name === 'status');
+  if (!hasStatus) {
+    db.exec(`
+      ALTER TABLE tasks ADD COLUMN status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'completed'));
+    `);
+  }
 
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
   if (userCount.count === 0) {
@@ -127,23 +136,23 @@ function seedData() {
   ).lastInsertRowid;
 
   const insertTask = db.prepare(
-    'INSERT INTO tasks (project_id, name, estimated_hours) VALUES (?, ?, ?)'
+    'INSERT INTO tasks (project_id, name, estimated_hours, status) VALUES (?, ?, ?, ?)'
   );
 
-  const t1 = insertTask.run(Number(project1Id), '需求分析', 40).lastInsertRowid;
-  const t2 = insertTask.run(Number(project1Id), 'UI设计', 60).lastInsertRowid;
-  const t3 = insertTask.run(Number(project1Id), '前端开发', 120).lastInsertRowid;
-  const t4 = insertTask.run(Number(project1Id), '后端开发', 80).lastInsertRowid;
-  const t5 = insertTask.run(Number(project1Id), '测试上线', 20).lastInsertRowid;
+  const t1 = insertTask.run(Number(project1Id), '需求分析', 40, 'completed').lastInsertRowid;
+  const t2 = insertTask.run(Number(project1Id), 'UI设计', 60, 'completed').lastInsertRowid;
+  const t3 = insertTask.run(Number(project1Id), '前端开发', 120, 'pending').lastInsertRowid;
+  const t4 = insertTask.run(Number(project1Id), '后端开发', 80, 'pending').lastInsertRowid;
+  const t5 = insertTask.run(Number(project1Id), '测试上线', 20, 'pending').lastInsertRowid;
 
-  const t6 = insertTask.run(Number(project2Id), '产品原型', 30).lastInsertRowid;
-  const t7 = insertTask.run(Number(project2Id), 'iOS开发', 80).lastInsertRowid;
-  const t8 = insertTask.run(Number(project2Id), 'Android开发', 70).lastInsertRowid;
-  const t9 = insertTask.run(Number(project2Id), '联调测试', 20).lastInsertRowid;
+  const t6 = insertTask.run(Number(project2Id), '产品原型', 30, 'completed').lastInsertRowid;
+  const t7 = insertTask.run(Number(project2Id), 'iOS开发', 80, 'pending').lastInsertRowid;
+  const t8 = insertTask.run(Number(project2Id), 'Android开发', 70, 'pending').lastInsertRowid;
+  const t9 = insertTask.run(Number(project2Id), '联调测试', 20, 'pending').lastInsertRowid;
 
-  const t10 = insertTask.run(Number(project3Id), '数据采集', 40).lastInsertRowid;
-  const t11 = insertTask.run(Number(project3Id), '报表开发', 70).lastInsertRowid;
-  const t12 = insertTask.run(Number(project3Id), '系统部署', 40).lastInsertRowid;
+  const t10 = insertTask.run(Number(project3Id), '数据采集', 40, 'completed').lastInsertRowid;
+  const t11 = insertTask.run(Number(project3Id), '报表开发', 70, 'completed').lastInsertRowid;
+  const t12 = insertTask.run(Number(project3Id), '系统部署', 40, 'completed').lastInsertRowid;
 
   const insertTimeEntry = db.prepare(
     'INSERT INTO time_entries (user_id, project_id, task_id, date, hours, description, status, approved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'

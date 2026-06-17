@@ -14,6 +14,9 @@ import {
   Pencil,
   TrendingUp,
   Users,
+  CheckCircle2,
+  Circle,
+  CheckSquare,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
@@ -33,7 +36,7 @@ export default function ProjectDetailPage() {
 
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [taskForm, setTaskForm] = useState({ name: '', estimatedHours: '' });
+  const [taskForm, setTaskForm] = useState({ name: '', estimatedHours: '', status: 'pending' as 'pending' | 'completed' });
   const [submitting, setSubmitting] = useState(false);
 
   const canManage = user && (user.role === 'admin' || (user.role === 'manager' && project?.manager_id === user.id));
@@ -73,21 +76,34 @@ export default function ProjectDetailPage() {
         await api.tasks.update(Number(id), editingTask.id, {
           name: taskForm.name,
           estimatedHours: Number(taskForm.estimatedHours),
+          status: taskForm.status,
         });
       } else {
         await api.tasks.create(Number(id), {
           name: taskForm.name,
           estimatedHours: Number(taskForm.estimatedHours),
+          status: taskForm.status,
         });
       }
       setShowTaskModal(false);
       setEditingTask(null);
-      setTaskForm({ name: '', estimatedHours: '' });
+      setTaskForm({ name: '', estimatedHours: '', status: 'pending' });
       loadData();
     } catch (err: any) {
       console.error('Save task error:', err);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleToggleTaskStatus = async (task: Task) => {
+    if (!canManage) return;
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+    try {
+      await api.tasks.update(Number(id), task.id, { status: newStatus });
+      loadData();
+    } catch (err: any) {
+      console.error('Toggle task status error:', err);
     }
   };
 
@@ -121,7 +137,7 @@ export default function ProjectDetailPage() {
 
   const openEditTask = (task: Task) => {
     setEditingTask(task);
-    setTaskForm({ name: task.name, estimatedHours: String(task.estimated_hours) });
+    setTaskForm({ name: task.name, estimatedHours: String(task.estimated_hours), status: task.status });
     setShowTaskModal(true);
   };
 
@@ -212,7 +228,14 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="p-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-slate-50 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-2 text-slate-500">
+                <CheckSquare className="w-4 h-4" />
+                <span className="text-sm">任务完成进度</span>
+              </div>
+              <div className="text-3xl font-bold text-slate-800">{project.task_progress ?? 0}%</div>
+            </div>
             <div className="bg-slate-50 rounded-xl p-5">
               <div className="flex items-center gap-2 mb-2 text-slate-500">
                 <TrendingUp className="w-4 h-4" />
@@ -241,35 +264,59 @@ export default function ProjectDetailPage() {
             </div>
           </div>
 
-          <div className="mb-8">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-slate-600 font-medium">总进度</span>
-              <span className="font-semibold text-slate-800">
-                {project.actual_hours || 0}h / {project.estimated_hours}h
-              </span>
-            </div>
-            <div className="relative h-10 bg-slate-100 rounded-xl overflow-hidden">
-              <div
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-200 to-blue-300 transition-all duration-700"
-                style={{ width: '100%' }}
-              />
-              <div
-                className={`absolute inset-y-0 left-0 transition-all duration-700 ${
-                  usage >= 100
-                    ? 'bg-gradient-to-r from-red-500 to-red-600'
-                    : usage >= 80
-                    ? 'bg-gradient-to-r from-orange-500 to-orange-600'
-                    : 'bg-gradient-to-r from-teal-500 to-teal-600'
-                }`}
-                style={{ width: `${usage}%` }}
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-sm font-bold text-white drop-shadow-lg">{usage}%</span>
+          <div className="mb-8 space-y-5">
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-slate-600 font-medium flex items-center gap-1.5">
+                  <CheckSquare className="w-4 h-4 text-blue-600" />
+                  任务完成进度
+                </span>
+                <span className="font-semibold text-slate-800">
+                  {project.task_progress ?? 0}%
+                </span>
+              </div>
+              <div className="h-6 bg-slate-100 rounded-xl overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-700 flex items-center justify-end pr-3"
+                  style={{ width: `${Math.max(project.task_progress ?? 0, 6)}%` }}
+                >
+                  {(project.task_progress ?? 0) >= 10 && (
+                    <span className="text-xs font-bold text-white">{project.task_progress ?? 0}%</span>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="flex justify-between text-xs text-slate-500 mt-2">
-              <span>预估工时（浅蓝）</span>
-              <span>实际工时（深色）</span>
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-slate-600 font-medium">工时进度</span>
+                <span className="font-semibold text-slate-800">
+                  {project.actual_hours || 0}h / {project.estimated_hours}h
+                </span>
+              </div>
+              <div className="relative h-6 bg-slate-100 rounded-xl overflow-hidden">
+                <div
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-200 to-blue-300 transition-all duration-700"
+                  style={{ width: '100%' }}
+                />
+                <div
+                  className={`absolute inset-y-0 left-0 transition-all duration-700 flex items-center justify-end pr-3 ${
+                    usage >= 100
+                      ? 'bg-gradient-to-r from-red-500 to-red-600'
+                      : usage >= 80
+                      ? 'bg-gradient-to-r from-orange-500 to-orange-600'
+                      : 'bg-gradient-to-r from-teal-500 to-teal-600'
+                  }`}
+                  style={{ width: `${Math.max(usage, 6)}%` }}
+                >
+                  {usage >= 10 && (
+                    <span className="text-xs font-bold text-white drop-shadow">{usage}%</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-between text-xs text-slate-500 mt-2">
+                <span>预估工时（浅蓝）</span>
+                <span>实际工时（深色）</span>
+              </div>
             </div>
           </div>
 
@@ -311,7 +358,7 @@ export default function ProjectDetailPage() {
                 <button
                   onClick={() => {
                     setEditingTask(null);
-                    setTaskForm({ name: '', estimatedHours: '' });
+                    setTaskForm({ name: '', estimatedHours: '', status: 'pending' });
                     setShowTaskModal(true);
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-lg transition-colors"
@@ -335,19 +382,52 @@ export default function ProjectDetailPage() {
                     ? Math.min(100, Math.round(((task.actual_hours || 0) / task.estimated_hours) * 100))
                     : 0;
                   const isExpanded = expandedTask === task.id;
+                  const isCompleted = task.status === 'completed';
 
                   return (
-                    <div key={task.id} className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div key={task.id} className={`border rounded-xl overflow-hidden transition-colors ${
+                      isCompleted ? 'border-green-200 bg-green-50/30' : 'border-slate-200'
+                    }`}>
                       <div
-                        className="p-5 bg-white hover:bg-slate-50 cursor-pointer transition-colors"
+                        className={`p-5 bg-white hover:bg-slate-50 cursor-pointer transition-colors`}
                         onClick={() => setExpandedTask(isExpanded ? null : task.id)}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h4 className="font-semibold text-slate-800">{task.name}</h4>
+                            <div className="flex items-center gap-3 mb-2 flex-wrap">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleTaskStatus(task);
+                                }}
+                                disabled={!canManage}
+                                className={`flex items-center justify-center w-6 h-6 rounded transition-all ${
+                                  canManage ? 'cursor-pointer hover:scale-105' : 'cursor-default'
+                                }`}
+                                title={canManage ? (isCompleted ? '标记为未完成' : '标记为已完成') : '完成状态'}
+                              >
+                                {isCompleted ? (
+                                  <CheckCircle2 className="w-6 h-6 text-green-500 fill-green-50" />
+                                ) : (
+                                  <Circle className="w-6 h-6 text-slate-400" />
+                                )}
+                              </button>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className={`font-semibold ${
+                                  isCompleted ? 'text-slate-500 line-through' : 'text-slate-800'
+                                }`}>
+                                  {task.name}
+                                </h4>
+                                <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
+                                  isCompleted
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                  {isCompleted ? '已完成' : '进行中'}
+                                </span>
+                              </div>
                               {canManage && (
-                                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex gap-1 ml-auto" onClick={(e) => e.stopPropagation()}>
                                   <button
                                     onClick={() => openEditTask(task)}
                                     className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -363,12 +443,14 @@ export default function ProjectDetailPage() {
                                 </div>
                               )}
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 pl-8">
                               <div className="flex-1 max-w-md">
                                 <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                                   <div
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      taskUsage >= 100
+                                      isCompleted
+                                        ? 'bg-green-500'
+                                        : taskUsage >= 100
                                         ? 'bg-red-500'
                                         : taskUsage >= 80
                                         ? 'bg-orange-500'
@@ -485,6 +567,33 @@ export default function ProjectDetailPage() {
                   className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   placeholder="请输入预估工时"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">任务状态</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setTaskForm({ ...taskForm, status: 'pending' })}
+                    className={`px-4 py-2.5 rounded-lg border-2 font-medium transition-all ${
+                      taskForm.status === 'pending'
+                        ? 'border-amber-500 bg-amber-50 text-amber-700'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    进行中
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskForm({ ...taskForm, status: 'completed' })}
+                    className={`px-4 py-2.5 rounded-lg border-2 font-medium transition-all ${
+                      taskForm.status === 'completed'
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    已完成
+                  </button>
+                </div>
               </div>
               <div className="flex gap-3 pt-4">
                 <button

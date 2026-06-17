@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderKanban, User, Calendar, Clock, ArrowRight, Plus } from 'lucide-react';
+import { FolderKanban, User, Calendar, Clock, ArrowRight, Plus, CheckSquare } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import type { Project, User as UserType } from '@/types';
@@ -124,6 +124,7 @@ export default function ProjectListPage() {
             const usage = project.estimated_hours > 0
               ? Math.min(100, Math.round(((project.actual_hours || 0) / project.estimated_hours) * 100))
               : 0;
+            const taskProgress = project.task_progress ?? 0;
             return (
               <div
                 key={project.id}
@@ -170,18 +171,35 @@ export default function ProjectListPage() {
                   </div>
                 </div>
 
-                <div className="mb-4">
-                  <div className="flex justify-between text-xs text-slate-500 mb-1">
-                    <span>工时进度</span>
-                    <span className="font-medium">{usage}%</span>
+                <div className="space-y-3 mb-4">
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-500 mb-1">
+                      <span className="flex items-center gap-1">
+                        <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
+                        任务完成
+                      </span>
+                      <span className="font-medium text-blue-700">{taskProgress}%</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700 bg-gradient-to-r from-blue-500 to-blue-600"
+                        style={{ width: `${taskProgress}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${
-                        usage >= 100 ? 'bg-red-500' : usage >= 80 ? 'bg-orange-500' : 'bg-teal-500'
-                      }`}
-                      style={{ width: `${usage}%` }}
-                    />
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-500 mb-1">
+                      <span>工时进度</span>
+                      <span className="font-medium">{usage}%</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${
+                          usage >= 100 ? 'bg-red-500' : usage >= 80 ? 'bg-orange-500' : 'bg-teal-500'
+                        }`}
+                        style={{ width: `${usage}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
 

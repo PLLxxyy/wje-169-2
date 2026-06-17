@@ -13,7 +13,11 @@ router.get('/', authMiddleware, (req: AuthRequest, res: Response): void => {
     if (user.role === 'admin') {
       projects = db.prepare(`
         SELECT p.*, u.name as manager_name,
-          COALESCE((SELECT SUM(hours) FROM time_entries te WHERE te.project_id = p.id AND te.status != 'rejected'), 0) as actual_hours
+          COALESCE((SELECT SUM(hours) FROM time_entries te WHERE te.project_id = p.id AND te.status != 'rejected'), 0) as actual_hours,
+          COALESCE((
+            SELECT ROUND(SUM(CASE WHEN t.status = 'completed' THEN t.estimated_hours ELSE 0 END) * 100.0 / NULLIF(SUM(t.estimated_hours), 0), 0)
+            FROM tasks t WHERE t.project_id = p.id
+          ), 0) as task_progress
         FROM projects p
         LEFT JOIN users u ON p.manager_id = u.id
         ORDER BY p.created_at DESC
@@ -21,7 +25,11 @@ router.get('/', authMiddleware, (req: AuthRequest, res: Response): void => {
     } else if (user.role === 'manager') {
       projects = db.prepare(`
         SELECT p.*, u.name as manager_name,
-          COALESCE((SELECT SUM(hours) FROM time_entries te WHERE te.project_id = p.id AND te.status != 'rejected'), 0) as actual_hours
+          COALESCE((SELECT SUM(hours) FROM time_entries te WHERE te.project_id = p.id AND te.status != 'rejected'), 0) as actual_hours,
+          COALESCE((
+            SELECT ROUND(SUM(CASE WHEN t.status = 'completed' THEN t.estimated_hours ELSE 0 END) * 100.0 / NULLIF(SUM(t.estimated_hours), 0), 0)
+            FROM tasks t WHERE t.project_id = p.id
+          ), 0) as task_progress
         FROM projects p
         LEFT JOIN users u ON p.manager_id = u.id
         WHERE p.manager_id = ?
@@ -30,7 +38,11 @@ router.get('/', authMiddleware, (req: AuthRequest, res: Response): void => {
     } else {
       projects = db.prepare(`
         SELECT DISTINCT p.*, u.name as manager_name,
-          COALESCE((SELECT SUM(hours) FROM time_entries te WHERE te.project_id = p.id AND te.status != 'rejected'), 0) as actual_hours
+          COALESCE((SELECT SUM(hours) FROM time_entries te WHERE te.project_id = p.id AND te.status != 'rejected'), 0) as actual_hours,
+          COALESCE((
+            SELECT ROUND(SUM(CASE WHEN t.status = 'completed' THEN t.estimated_hours ELSE 0 END) * 100.0 / NULLIF(SUM(t.estimated_hours), 0), 0)
+            FROM tasks t WHERE t.project_id = p.id
+          ), 0) as task_progress
         FROM projects p
         LEFT JOIN users u ON p.manager_id = u.id
         INNER JOIN time_entries te ON te.project_id = p.id AND te.user_id = ?
@@ -49,7 +61,11 @@ router.get('/:id', authMiddleware, (req: AuthRequest, res: Response): void => {
   try {
     const project = db.prepare(`
       SELECT p.*, u.name as manager_name,
-        COALESCE((SELECT SUM(hours) FROM time_entries te WHERE te.project_id = p.id AND te.status != 'rejected'), 0) as actual_hours
+        COALESCE((SELECT SUM(hours) FROM time_entries te WHERE te.project_id = p.id AND te.status != 'rejected'), 0) as actual_hours,
+        COALESCE((
+          SELECT ROUND(SUM(CASE WHEN t.status = 'completed' THEN t.estimated_hours ELSE 0 END) * 100.0 / NULLIF(SUM(t.estimated_hours), 0), 0)
+          FROM tasks t WHERE t.project_id = p.id
+        ), 0) as task_progress
       FROM projects p
       LEFT JOIN users u ON p.manager_id = u.id
       WHERE p.id = ?
@@ -82,7 +98,7 @@ router.post('/', authMiddleware, requireRole('admin'), (req: AuthRequest, res: R
     `).run(name, managerId, estimatedHours, startDate, endDate);
 
     const project = db.prepare(`
-      SELECT p.*, u.name as manager_name, 0 as actual_hours
+      SELECT p.*, u.name as manager_name, 0 as actual_hours, 0 as task_progress
       FROM projects p
       LEFT JOIN users u ON p.manager_id = u.id
       WHERE p.id = ?
@@ -119,7 +135,11 @@ router.put('/:id', authMiddleware, requireProjectManagerOrAdmin, (req: AuthReque
 
     const project = db.prepare(`
       SELECT p.*, u.name as manager_name,
-        COALESCE((SELECT SUM(hours) FROM time_entries te WHERE te.project_id = p.id AND te.status != 'rejected'), 0) as actual_hours
+        COALESCE((SELECT SUM(hours) FROM time_entries te WHERE te.project_id = p.id AND te.status != 'rejected'), 0) as actual_hours,
+        COALESCE((
+          SELECT ROUND(SUM(CASE WHEN t.status = 'completed' THEN t.estimated_hours ELSE 0 END) * 100.0 / NULLIF(SUM(t.estimated_hours), 0), 0)
+          FROM tasks t WHERE t.project_id = p.id
+        ), 0) as task_progress
       FROM projects p
       LEFT JOIN users u ON p.manager_id = u.id
       WHERE p.id = ?

@@ -21,13 +21,17 @@ export interface Project {
   status: ProjectStatus;
   created_at: string;
   actual_hours?: number;
+  task_progress?: number;
 }
+
+export type TaskStatus = 'pending' | 'completed';
 
 export interface Task {
   id: number;
   project_id: number;
   name: string;
   estimated_hours: number;
+  status: TaskStatus;
   created_at: string;
   actual_hours?: number;
 }
@@ -57,6 +61,7 @@ export interface ProjectStats {
   actualHours: number;
   usageRate: number;
   memberCount: number;
+  taskProgress: number;
 }
 
 export interface PersonalStats {
@@ -79,6 +84,7 @@ export interface ProjectDetailStats extends ProjectStats {
     taskName: string;
     estimatedHours: number;
     actualHours: number;
+    status: TaskStatus;
   }>;
   members: Array<{
     userId: number;
@@ -99,6 +105,7 @@ export interface OverviewStats {
     projectName: string;
     estimatedHours: number;
     actualHours: number;
+    taskProgress: number;
   }>;
   memberRanking: Array<{
     userId: number;

@@ -13,7 +13,11 @@ router.get('/projects', authMiddleware, requireRole('admin'), (_req: AuthRequest
         p.name as projectName,
         p.estimated_hours as estimatedHours,
         COALESCE(SUM(CASE WHEN te.status != 'rejected' THEN te.hours ELSE 0 END), 0) as actualHours,
-        COUNT(DISTINCT te.user_id) as memberCount
+        COUNT(DISTINCT te.user_id) as memberCount,
+        COALESCE((
+          SELECT ROUND(SUM(CASE WHEN t.status = 'completed' THEN t.estimated_hours ELSE 0 END) * 100.0 / NULLIF(SUM(t.estimated_hours), 0), 0)
+          FROM tasks t WHERE t.project_id = p.id
+        ), 0) as taskProgress
       FROM projects p
       LEFT JOIN time_entries te ON te.project_id = p.id
       GROUP BY p.id
@@ -24,6 +28,7 @@ router.get('/projects', authMiddleware, requireRole('admin'), (_req: AuthRequest
       estimatedHours: number;
       actualHours: number;
       memberCount: number;
+      taskProgress: number;
     }>;
 
     const stats: ProjectStats[] = projects.map(p => ({
@@ -48,7 +53,11 @@ router.get('/projects/:id', authMiddleware, (req: AuthRequest, res: Response): v
         p.name as projectName,
         p.estimated_hours as estimatedHours,
         COALESCE(SUM(CASE WHEN te.status != 'rejected' THEN te.hours ELSE 0 END), 0) as actualHours,
-        COUNT(DISTINCT te.user_id) as memberCount
+        COUNT(DISTINCT te.user_id) as memberCount,
+        COALESCE((
+          SELECT ROUND(SUM(CASE WHEN t.status = 'completed' THEN t.estimated_hours ELSE 0 END) * 100.0 / NULLIF(SUM(t.estimated_hours), 0), 0)
+          FROM tasks t WHERE t.project_id = p.id
+        ), 0) as taskProgress
       FROM projects p
       LEFT JOIN time_entries te ON te.project_id = p.id
       WHERE p.id = ?
@@ -59,6 +68,7 @@ router.get('/projects/:id', authMiddleware, (req: AuthRequest, res: Response): v
       estimatedHours: number;
       actualHours: number;
       memberCount: number;
+      taskProgress: number;
     } | undefined;
 
     if (!project) {
@@ -71,7 +81,8 @@ router.get('/projects/:id', authMiddleware, (req: AuthRequest, res: Response): v
         t.id as taskId,
         t.name as taskName,
         t.estimated_hours as estimatedHours,
-        COALESCE(SUM(CASE WHEN te.status != 'rejected' THEN te.hours ELSE 0 END), 0) as actualHours
+        COALESCE(SUM(CASE WHEN te.status != 'rejected' THEN te.hours ELSE 0 END), 0) as actualHours,
+        t.status as status
       FROM tasks t
       LEFT JOIN time_entries te ON te.task_id = t.id
       WHERE t.project_id = ?
@@ -176,7 +187,11 @@ router.get('/overview', authMiddleware, requireRole('admin'), (_req: AuthRequest
         p.id as projectId,
         p.name as projectName,
         p.estimated_hours as estimatedHours,
-        COALESCE(SUM(CASE WHEN te.status != 'rejected' THEN te.hours ELSE 0 END), 0) as actualHours
+        COALESCE(SUM(CASE WHEN te.status != 'rejected' THEN te.hours ELSE 0 END), 0) as actualHours,
+        COALESCE((
+          SELECT ROUND(SUM(CASE WHEN t.status = 'completed' THEN t.estimated_hours ELSE 0 END) * 100.0 / NULLIF(SUM(t.estimated_hours), 0), 0)
+          FROM tasks t WHERE t.project_id = p.id
+        ), 0) as taskProgress
       FROM projects p
       LEFT JOIN time_entries te ON te.project_id = p.id
       GROUP BY p.id

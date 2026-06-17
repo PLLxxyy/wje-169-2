@@ -9,6 +9,7 @@ import {
   DollarSign,
   BarChart3,
   X,
+  CheckSquare,
 } from 'lucide-react';
 import {
   BarChart,
@@ -274,14 +275,15 @@ export default function DashboardPage() {
             <FolderKanban className="w-5 h-5 text-purple-700" />
             <h3 className="text-lg font-semibold text-slate-800">项目状态概览</h3>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {projects.slice(0, 6).map((project) => {
               const usage = project.estimated_hours > 0
                 ? Math.min(100, Math.round(((project.actual_hours || 0) / project.estimated_hours) * 100))
                 : 0;
+              const taskProgress = project.task_progress ?? 0;
               return (
                 <div key={project.id} className="p-4 bg-slate-50 rounded-lg">
-                  <div className="flex justify-between items-center mb-2">
+                  <div className="flex justify-between items-center mb-3">
                     <span className="font-medium text-slate-700">{project.name}</span>
                     <span
                       className={`text-xs px-2 py-1 rounded-full ${
@@ -295,18 +297,36 @@ export default function DashboardPage() {
                       {project.status === 'active' ? '进行中' : project.status === 'completed' ? '已完成' : '已归档'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          usage >= 100 ? 'bg-red-500' : usage >= 80 ? 'bg-orange-500' : 'bg-teal-500'
-                        }`}
-                        style={{ width: `${usage}%` }}
-                      />
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-500 w-16 flex items-center gap-1 flex-shrink-0">
+                        <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
+                        任务进度
+                      </span>
+                      <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-blue-500 to-blue-600"
+                          style={{ width: `${taskProgress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-medium text-blue-700 w-10 text-right flex-shrink-0">
+                        {taskProgress}%
+                      </span>
                     </div>
-                    <span className="text-sm font-medium text-slate-600 w-16 text-right">
-                      {project.actual_hours || 0}/{project.estimated_hours}h ({usage}%)
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-500 w-16 flex-shrink-0">工时进度</span>
+                      <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            usage >= 100 ? 'bg-red-500' : usage >= 80 ? 'bg-orange-500' : 'bg-teal-500'
+                          }`}
+                          style={{ width: `${usage}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-medium text-slate-600 w-10 text-right flex-shrink-0">
+                        {usage}%
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
